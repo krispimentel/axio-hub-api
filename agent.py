@@ -25,14 +25,14 @@ from tools.document_index import extract_relevant_content
 # stop:        sequências que sinalizam fim do entregável (evita conteúdo extra)
 
 MODULE_CONFIG = {
-    "discovery": dict(temperature=0.2, max_tokens=4096, top_p=0.90),
-    "pesquisa":  dict(temperature=0.1, max_tokens=3072, top_p=0.85),
-    "fluxos":    dict(temperature=0.2, max_tokens=4096, top_p=0.90),
-    "writing":   dict(temperature=0.5, max_tokens=2048, top_p=0.95),
-    "auditoria": dict(temperature=0.1, max_tokens=6144, top_p=0.85),
+    "discovery": dict(temperature=0.2, max_tokens=2048, top_p=0.90),
+    "pesquisa":  dict(temperature=0.1, max_tokens=2048, top_p=0.85),
+    "fluxos":    dict(temperature=0.2, max_tokens=2048, top_p=0.90),
+    "writing":   dict(temperature=0.5, max_tokens=1536, top_p=0.95),
+    "auditoria": dict(temperature=0.1, max_tokens=3072, top_p=0.85),
 }
 
-DEFAULT_CONFIG = dict(temperature=0.2, max_tokens=2048, top_p=0.90)
+DEFAULT_CONFIG = dict(temperature=0.2, max_tokens=1536, top_p=0.90)
 
 def get_llm(module: str) -> ChatAnthropic:
     """Retorna uma instância de LLM com parâmetros calibrados para o módulo."""

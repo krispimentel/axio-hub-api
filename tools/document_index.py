@@ -1,11 +1,15 @@
-import os
-from llama_index.core import VectorStoreIndex, Document, Settings
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.llms.anthropic import Anthropic
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+"""
+RAG leve para extração de conteúdo relevante de documentos.
+Usa Google Embeddings (text-embedding-004) — sem PyTorch, sem dependências pesadas.
+"""
 
-# Modelo multilíngue pequeno — funciona bem com português
-EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+import math
+import os
+
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+EMBED_MODEL = "models/text-embedding-004"
 
 # Queries específicas por módulo — cada módulo busca o que é relevante para ele
 MODULE_QUERIES = {
@@ -32,36 +36,63 @@ MODULE_QUERIES = {
     ),
 }
 
+# Limite de chunks retornados (controla tokens enviados ao LLM)
+TOP_K = 6
+CHUNK_SIZE = 600
+CHUNK_OVERLAP = 60
 
-def _setup(llm_model: str = "claude-sonnet-4-6"):
-    """Configura LlamaIndex para usar Claude + embeddings locais."""
-    Settings.llm = Anthropic(model=llm_model)
-    Settings.embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL)
-    Settings.node_parser = SentenceSplitter(chunk_size=512, chunk_overlap=64)
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(x * x for x in b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
 
 
 def extract_relevant_content(text: str, module: str) -> str:
     """
-    Indexa o documento e extrai apenas os trechos mais relevantes
-    para o módulo solicitado.
-    Retorna uma string com o conteúdo filtrado.
+    Extrai apenas os trechos mais relevantes do documento para o módulo solicitado.
+    - Documentos curtos (< 2000 chars): retorna direto, sem embeddings.
+    - Documentos longos: chunking + Google embeddings + cosine similarity.
     """
     if not text or not text.strip():
         return ""
 
-    # Documentos curtos (menos de 2000 chars) não precisam de indexação
     if len(text) < 2000:
         return text
 
-    print("  Indexando documento com LlamaIndex...")
-    _setup()
+    print("  [RAG] Indexando documento com Google Embeddings...")
 
-    doc = Document(text=text)
-    index = VectorStoreIndex.from_documents([doc])
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
+    )
+    chunks = splitter.split_text(text)
+
+    if not chunks:
+        return text[:4000]
+
+    embedder = GoogleGenerativeAIEmbeddings(
+        model=EMBED_MODEL,
+        google_api_key=os.getenv("GEMINI_API_KEY"),
+    )
 
     query = MODULE_QUERIES.get(module, "Quais são as informações mais relevantes?")
-    query_engine = index.as_query_engine(similarity_top_k=6)
-    response = query_engine.query(query)
 
-    print("  Indexação concluída. Trechos relevantes extraídos.\n")
-    return str(response)
+    chunk_embeddings = embedder.embed_documents(chunks)
+    query_embedding = embedder.embed_query(query)
+
+    scored = [
+        (i, _cosine_similarity(query_embedding, emb))
+        for i, emb in enumerate(chunk_embeddings)
+    ]
+    scored.sort(key=lambda x: x[1], reverse=True)
+
+    # Retorna os top-k chunks em ordem original (preserva coerência textual)
+    top_indices = sorted(i for i, _ in scored[:TOP_K])
+    result = "\n\n".join(chunks[i] for i in top_indices)
+
+    print(f"  [RAG] {len(chunks)} chunks → {len(top_indices)} relevantes extraídos.\n")
+    return result

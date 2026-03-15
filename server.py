@@ -47,6 +47,7 @@ from modules.fluxos    import FLUXOS_PROMPT
 from modules.writing   import WRITING_PROMPT
 from modules.auditoria import AUDITORIA_PROMPT
 from tools.file_reader import read_file
+from tools.document_index import extract_relevant_content
 
 MODULE_PROMPTS: dict[str, str] = {
     "discovery": DISCOVERY_PROMPT,
@@ -182,8 +183,10 @@ async def chat(
         )
 
     if file_content:
+        # RAG: extrai apenas trechos relevantes para o módulo (reduz tokens)
+        relevant_content = extract_relevant_content(file_content, module_key)
         user_content = (
-            f"[Arquivo(s) anexado(s):\n{file_content[:10000]}]\n\n"
+            f"[Arquivo(s) anexado(s):\n{relevant_content}]\n\n"
             f"{user_content}"
         )
 
