@@ -5,12 +5,11 @@ WORKDIR /app
 # Copia arquivos do projeto
 COPY . .
 
-# Instala uv e as dependências Python
-RUN pip install uv --quiet
-RUN uv sync --no-dev
+# Instala apenas as dependências de produção (sem llama-index/torch/playwright)
+RUN pip install --no-cache-dir -r requirements-prod.txt
 
 # Porta exposta
 EXPOSE 8000
 
 # Inicia o servidor
-CMD ["uv", "run", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
