@@ -23,13 +23,24 @@ load_dotenv()
 
 # ─── Imports do agente ────────────────────────────────────────────────────────
 
-from agent import (
-    MODULE_CONFIG,
-    DEFAULT_CONFIG,
-    CONTEXT_ANCHOR,
-    grounded_content,
-    run_agent,
-)
+try:
+    from agent import (
+        MODULE_CONFIG,
+        DEFAULT_CONFIG,
+        CONTEXT_ANCHOR,
+        grounded_content,
+        run_agent,
+    )
+    AGENT_AVAILABLE = True
+except Exception:
+    AGENT_AVAILABLE = False
+    run_agent = None  # type: ignore
+    # Fallbacks mínimos para o servidor iniciar sem Playwright
+    MODULE_CONFIG: dict = {}
+    DEFAULT_CONFIG: dict = {"temperature": 0.7, "max_tokens": 4096, "top_p": 0.90}
+    CONTEXT_ANCHOR = ""
+    def grounded_content(text: str, module: str) -> str:  # type: ignore
+        return text
 from modules.discovery import DISCOVERY_PROMPT
 from modules.pesquisa  import PESQUISA_PROMPT
 from modules.fluxos    import FLUXOS_PROMPT
@@ -186,18 +197,22 @@ async def chat(
     )
 
     if is_audit_with_url:
-        # Roda o agente síncrono em executor para não bloquear o event loop
-        loop = asyncio.get_event_loop()
-        user_input = f"/{module_key} {user_content}"
-        response_text = await loop.run_in_executor(
-            None,
-            lambda: run_agent(user_input, file_content),
-        )
-        return StreamingResponse(
-            _sse_from_full_response(response_text),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
+        if not AGENT_AVAILABLE:
+            # Playwright não disponível neste ambiente — usa LLM diretamente
+            is_audit_with_url = False
+        else:
+            # Roda o agente síncrono em executor para não bloquear o event loop
+            loop = asyncio.get_event_loop()
+            user_input = f"/{module_key} {user_content}"
+            response_text = await loop.run_in_executor(
+                None,
+                lambda: run_agent(user_input, file_content),
+            )
+            return StreamingResponse(
+                _sse_from_full_response(response_text),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
 
     # ── Demais módulos → streaming direto da LLM ──────────────────────────────
     result_queue: queue.Queue = queue.Queue()
