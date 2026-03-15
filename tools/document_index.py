@@ -7,7 +7,10 @@ import math
 import os
 
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+try:
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+except ImportError:
+    from langchain.text_splitter import RecursiveCharacterTextSplitter  # type: ignore
 
 EMBED_MODEL = "models/text-embedding-004"
 
