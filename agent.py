@@ -3,6 +3,7 @@ from langgraph.graph import StateGraph, END
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
+import os
 import requests
 from bs4 import BeautifulSoup
 import base64
@@ -37,10 +38,14 @@ DEFAULT_CONFIG = dict(temperature=0.2, max_tokens=1536, top_p=0.90)
 def get_llm(module: str) -> ChatAnthropic:
     """Retorna uma instância de LLM com parâmetros calibrados para o módulo."""
     cfg = MODULE_CONFIG.get(module, DEFAULT_CONFIG)
-    return ChatAnthropic(model="claude-sonnet-4-6", **cfg)
+    return ChatAnthropic(
+        model="claude-sonnet-4-6",
+        api_key=os.getenv("ANTHROPIC_API_KEY"),
+        **cfg,
+    )
 
 # LLM padrão (usado fora dos módulos)
-llm = ChatAnthropic(model="claude-sonnet-4-6", max_tokens=4096)
+llm = ChatAnthropic(model="claude-sonnet-4-6", max_tokens=4096, api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 # ─── Âncora de contexto ────────────────────────────────────────────────────────
 # Sufixo adicionado ao system prompt de todo módulo.
