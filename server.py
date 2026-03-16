@@ -88,7 +88,6 @@ def _build_llm(model: str, module_key: str):
         model="claude-sonnet-4-6",
         temperature=cfg["temperature"],
         max_tokens=cfg["max_tokens"],
-        top_p=cfg.get("top_p", 0.90),
         streaming=True,
         api_key=os.getenv("ANTHROPIC_API_KEY"),
     )
