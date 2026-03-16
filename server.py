@@ -61,14 +61,12 @@ MODULE_PROMPTS: dict[str, str] = {
 
 app = FastAPI(title="Axio Hub API", version="1.0.0")
 
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
-_origins = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else ["*"]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # ─── Helpers de streaming ─────────────────────────────────────────────────────
